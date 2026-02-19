@@ -15,6 +15,10 @@ class NotificationKit:
 		self.smtp_server: str = os.getenv('CUSTOM_SMTP_SERVER', '')
 		self.pushplus_token = os.getenv('PUSHPLUS_TOKEN')
 		self.server_push_key = os.getenv('SERVERPUSHKEY')
+
+		# 新增：自建 wecomchan 地址（例如 https://server.117911.xyz/wecomchan）
+		self.wecomchan_url = os.getenv('WECOMCHAN_URL', '').strip()
+
 		self.dingding_webhook = os.getenv('DINGDING_WEBHOOK')
 		self.feishu_webhook = os.getenv('FEISHU_WEBHOOK')
 		self.weixin_webhook = os.getenv('WEIXIN_WEBHOOK')
@@ -58,8 +62,19 @@ class NotificationKit:
 		if not self.server_push_key:
 			raise ValueError('Server Push key not configured')
 
-		data = {'title': title, 'desp': content}
 		with httpx.Client(timeout=30.0) as client:
+			# 优先：走自建 wecomchan（兼容你现在的部署）
+			if self.wecomchan_url:
+				params = {
+					'sendkey': self.server_push_key,
+					'msg': f'{title}\n{content}',
+					'msg_type': 'text',
+				}
+				client.get(self.wecomchan_url, params=params)
+				return
+
+			# 回退：官方 Server酱
+			data = {'title': title, 'desp': content}
 			client.post(f'https://sctapi.ftqq.com/{self.server_push_key}.send', json=data)
 
 	def send_dingtalk(self, title: str, content: str):
